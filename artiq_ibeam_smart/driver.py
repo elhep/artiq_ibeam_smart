@@ -3,6 +3,7 @@
 import abc
 import asyncio
 import logging
+import re
 import time
 
 import serial
@@ -82,7 +83,34 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         """
         if channel not in self.available_channels:
             raise ValueError("Channel out of range")
-        return self.send_command(f"sta ch {channel}")
+        ret = self.send_command(f"sta ch {channel}")
+        if "ON" in ret:
+            return 1
+        elif "OFF" in ret:
+            return 0
+        else:
+            raise ValueError(f"Unexpected return value: {ret}")
+
+    def extract_channel_power(self, channel, response):
+        """
+        Extract the power output for a specified channel from the response.
+        :param response: The response string from the device.
+        :param channel: The channel number (e.g., 1 or 2).
+        :return: The power output as a float.
+        :raises ValueError: If the channel is not found or the power value is invalid.
+        """
+        pattern = rf"CH{channel}, PWR:\s*([\d\.]+)\s*(\w+)"
+        match = re.search(pattern, response)
+
+        if match:
+            power_value = match.group(1)
+            units = match.group(2)
+            return f"{power_value} {units}"
+        else:
+            # Raise an error if the channel's power output is not found.
+            raise ValueError(
+                f"Power output for channel {channel} not found in the response."
+            )
 
     async def get_channel_power(self, channel):  # TODO check actual output
         """
@@ -90,7 +118,9 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         """
         if channel not in self.available_channels:
             raise ValueError("Channel out of range")
-        return self.send_command("sh level pow")
+        ret = self.send_command("sh level pow")
+        power = self.extract_channel_power(channel, ret)
+        return power
 
     def close(self):
         self.client.close()
