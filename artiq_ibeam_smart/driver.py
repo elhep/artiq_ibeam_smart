@@ -56,7 +56,22 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         self.serial_connection.write((command + "\r\n").encode())
         time.sleep(0.5)
         response = self.serial_connection.read_all().decode()
+        self.check_for_errors(response)
         return response
+
+    def check_for_errors(self, response):
+        """
+        Checks for any warning, error, or fatal in the response and raises an exception
+        if found.
+        """
+        keywords = ["%SYS-W-", "%SYS-E-", "%SYS-F-"]
+        lines = response.splitlines()
+
+        for line in lines:
+            for keyword in keywords:
+                if keyword in line:
+                    message = line.strip()
+                    raise ValueError(f"{message}")
 
     async def set_channel_on(self, channel, channel_on):
         """
@@ -99,7 +114,7 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         :return: The power output as a float.
         :raises ValueError: If the channel is not found or the power value is invalid.
         """
-        pattern = rf"CH{channel}, PWR:\s*([\d\.]+)\s*(\w+)"
+        pattern = rf"CH{channel}, PWR:\s*(-?[\d\.]+)\s*(\w+)"
         match = re.search(pattern, response)
 
         if match:
