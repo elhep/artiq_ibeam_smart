@@ -47,7 +47,6 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
             stopbits=serial.STOPBITS_ONE,
             timeout=1,
         )
-        self.available_channels = [1, 2]
 
     def send_command(self, command):
         """
@@ -77,8 +76,6 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         """
         Change state of the channel.
         """
-        if channel not in self.available_channels:
-            raise ValueError("Channel out of range")
         if channel_on:
             self.send_command(f"en {channel}")
         else:
@@ -88,16 +85,12 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         """
         Set power[uW] of the channel .
         """
-        if channel not in self.available_channels:
-            raise ValueError("Channel out of range")
         self.send_command(f"ch {channel} pow {power} mic")
 
     async def get_channel_on(self, channel):
         """
         Reading the state of the channel.
         """
-        if channel not in self.available_channels:
-            raise ValueError("Channel out of range")
         ret = self.send_command(f"sta ch {channel}")
         if "ON" in ret:
             return 1
@@ -131,8 +124,6 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         """
         Reading the power of the channel.
         """
-        if channel not in self.available_channels:
-            raise ValueError("Channel out of range")
         ret = self.send_command("sh level pow")
         power = self.extract_channel_power(channel, ret)
         return power
