@@ -4,10 +4,8 @@ import abc
 import asyncio
 import logging
 import re
-import time
-
+import serial_asyncio
 import serial
-
 
 class ArtiqIbeamSmartInterface(abc.ABC):
     @abc.abstractmethod
@@ -36,54 +34,55 @@ class ArtiqIbeamSmartInterface(abc.ABC):
 class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
     def __init__(self, serial_device):
         self.serial_device = serial_device
-        """
-        Configure the serial connection.
-        """
-        self.serial_connection = serial.Serial(
-            port=serial_device,
-            baudrate=115200,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE,
-            timeout=1,
-        )
+        self.reader = None
+        self.writer = None
         self.available_channels = [1, 2]
 
-    def send_command(self, command):
-        """
-        Send the command via serial connection.
-        """
-        self.serial_connection.write((command + "\r\n").encode())
-        time.sleep(0.5)
-        response = self.serial_connection.read_all().decode()
+    async def _ensure_connection(self):
+        """Ensure the serial connection is established."""
+        if self.reader is None or self.writer is None:
+            self.reader, self.writer = await serial_asyncio.open_serial_connection(
+                url=self.serial_device,
+                baudrate=115200,
+                bytesize=8,          # EIGHTBITS equivalent
+                parity='N',          # PARITY_NONE equivalent
+                stopbits=1           # STOPBITS_ONE equivalent
+            )
+
+    async def send_command(self, command):
+        """Send the command via serial connection."""
+        await self._ensure_connection()
+        self.writer.write((command + "\r\n").encode())
+        await self.writer.drain()  # Ensure the command is sent out
+        await asyncio.sleep(5)  # Give some time for the device to process the command
+        response = await self._read_response()
         return response
 
+    async def _read_response(self):
+        """Read the response from the serial connection asynchronously."""
+        response = await self.reader.read(1024)
+        return response.decode()
+
     async def set_channel_on(self, channel, channel_on):
-        """
-        Change state of the channel.
-        """
+        """Change state of the channel."""
         if channel not in self.available_channels:
             raise ValueError("Channel out of range")
         if channel_on:
-            self.send_command(f"en {channel}")
+            await self.send_command(f"en {channel}")
         else:
-            self.send_command(f"di {channel}")
+            await self.send_command(f"di {channel}")
 
     async def set_channel_power(self, channel, power):
-        """
-        Set power[uW] of the channel .
-        """
+        """Set power[uW] of the channel."""
         if channel not in self.available_channels:
             raise ValueError("Channel out of range")
-        self.send_command(f"ch {channel} pow {power} mic")
+        await self.send_command(f"ch {channel} pow {power} mic")
 
     async def get_channel_on(self, channel):
-        """
-        Reading the state of the channel.
-        """
+        """Read the state of the channel."""
         if channel not in self.available_channels:
             raise ValueError("Channel out of range")
-        ret = self.send_command(f"sta ch {channel}")
+        ret = await self.send_command(f"sta ch {channel}")
         if "ON" in ret:
             return 1
         elif "OFF" in ret:
@@ -107,23 +106,26 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
             units = match.group(2)
             return f"{power_value} {units}"
         else:
-            # Raise an error if the channel's power output is not found.
             raise ValueError(
                 f"Power output for channel {channel} not found in the response."
             )
 
-    async def get_channel_power(self, channel):  # TODO check actual output
-        """
-        Reading the power of the channel.
-        """
+    async def get_channel_power(self, channel):
+        """Read the power of the channel."""
         if channel not in self.available_channels:
             raise ValueError("Channel out of range")
-        ret = self.send_command("sh level pow")
+        ret = await self.send_command("sh level pow")
         power = self.extract_channel_power(channel, ret)
         return power
 
-    def close(self):
-        self.client.close()
+    async def close(self):
+        """Close the serial connection asynchronously."""
+        if self.writer:
+            self.writer.close()
+            await self.writer.wait_closed()
+            self.reader = None
+            self.writer = None
+
 
 
 class ArtiqIbeamSmartSim(ArtiqIbeamSmartInterface):

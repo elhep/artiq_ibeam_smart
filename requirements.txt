@@ -1,4 +1,5 @@
-asyncserial
+pyserial
+pyserial-asyncio
 pytest
 numpy
 sipyco @ git+https://github.com/m-labs/sipyco.git@master#egg=sipyco
