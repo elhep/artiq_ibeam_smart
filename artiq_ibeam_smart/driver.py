@@ -134,14 +134,20 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
 
 class ArtiqIbeamSmartSim(ArtiqIbeamSmartInterface):
     def __init__(self):
-        self.channel_on = 5 * [None]
-        self.channel_power = 5 * [None]
+        self.channel_on = 2 * [None]
+        self.channel_power = 2 * [None]
+
+    def convert_channel(self, channel):
+        conv_channel = channel - 1
+        if conv_channel not in [0, 1]:
+            raise ValueError("Channel out of range")
+        return conv_channel
 
     async def set_channel_on(self, channel, channel_on):
         """
         Simulate changing state of the channel.
         """
-        self.channel_on[channel] = channel_on
+        self.channel_on[self.convert_channel(channel)] = channel_on
         if channel_on:
             logging.warning(f"Simulated: Turning channel {channel} ON")
         else:
@@ -151,24 +157,26 @@ class ArtiqIbeamSmartSim(ArtiqIbeamSmartInterface):
         """
         Simulate changing power of the channel.
         """
-        self.channel_power[channel] = power
+        self.channel_power[self.convert_channel(channel)] = power
         logging.warning(f"Simulated: Setting channel {channel} power to {power}[uW]")
 
     async def get_channel_on(self, channel):
         """
         Simulate reading the state of the channel.
         """
+        conv_channel = self.convert_channel(channel)
         logging.warning(
-            f"Simulated: Channel {channel} state redout {self.channel_on[channel]}"
+            f"Simulated: Channel {channel} state redout {self.channel_on[conv_channel]}"
         )
-        return self.channel_on[channel]
+        return self.channel_on[conv_channel]
 
     async def get_channel_power(self, channel):
         """
         Simulate reading the power of the channel.
         """
+        conv_channel = self.convert_channel(channel)
         logging.warning(
             f"Simulated: Channel {channel} power redout "
-            f"{self.channel_power[channel]}[uW]"
+            f"{self.channel_power[conv_channel]}[uW]"
         )
-        return self.channel_power[channel]
+        return self.channel_power[conv_channel]
