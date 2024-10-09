@@ -4,6 +4,6 @@ __pycache__/
 *.log
 *.pdf
 *.out
-doc/build
+doc/_build
 artiq_ibeam_smart.egg-info/
 build/
