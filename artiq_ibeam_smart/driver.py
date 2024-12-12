@@ -113,7 +113,12 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         if match:
             power_value = match.group(1)
             units = match.group(2)
-            return f"{power_value} {units}"
+            if units == "mW":
+                return float(power_value)
+            elif units == "uW":
+                return float(power_value) / 1000
+            else:
+                raise ValueError(f"Invalid units: {units}")
         else:
             # Raise an error if the channel's power output is not found.
             raise ValueError(
@@ -127,6 +132,17 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         ret = self.send_command("sh level pow")
         power = self.extract_channel_power(channel, ret)
         return power
+    
+    def ping(self):
+        """
+        Sends a "serial" command to the device and checks if the response 
+        starts with "SN: iBEAM-SMART".
+
+        :return: True if the response identifier starts with "SN: iBEAM-SMART", 
+                  False otherwise.
+        """
+        identifier = self.send_command("serial")
+        return identifier.startswith("SN: iBEAM-SMART")
 
     def close(self):
         self.client.close()
