@@ -145,7 +145,7 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
         return identifier.startswith("SN: iBEAM-SMART")
 
     def close(self):
-        self.client.close()
+        self.serial_connection.close()
 
 
 class ArtiqIbeamSmartSim(ArtiqIbeamSmartInterface):
