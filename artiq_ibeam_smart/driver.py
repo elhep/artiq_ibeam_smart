@@ -15,6 +15,10 @@ class ArtiqIbeamSmartInterface(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def set_laser_on(self, laser_on):
+        pass
+
+    @abc.abstractmethod
     async def set_channel_power(self, channel, power):
         pass
 
@@ -80,6 +84,15 @@ class ArtiqIbeamSmart(ArtiqIbeamSmartInterface):
             self.send_command(f"en {channel}")
         else:
             self.send_command(f"di {channel}")
+
+    async def set_laser_on(self, laser_on):
+        """
+        Change state of the laser diode.
+        """
+        if laser_on:
+            self.send_command(f"la on")
+        else:
+            self.send_command(f"la off")
 
     async def set_channel_power(self, channel, power):
         """
